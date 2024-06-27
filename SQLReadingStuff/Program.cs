@@ -12,21 +12,52 @@ namespace SQLReadingStuff
             { "No Day", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
         static void Main(string[] args) // complete.
         {
+            // FILES REQUIRED: the database, the auto fill checker
+
             SQLiteConnection conn = CreateConn();
-            ConsoleKeyInfo autoChoice;
-            do
+
+            // i can't be asking this every time. the database has its limits and it can be violated and abused through this !
+
+            if (readTXT() == "false")
             {
-                Console.WriteLine("put in auto tasks? y/n");
-                autoChoice = Console.ReadKey();
-                Console.WriteLine();
-            } while(autoChoice.Key != ConsoleKey.Y && autoChoice.Key != ConsoleKey.N); // auto fill database. this is just a filler really.
-            if (autoChoice.Key == ConsoleKey.Y)
-            {
-                necessitiesTaskAutoSetup(conn);
+                ConsoleKeyInfo autoChoice;
+                do
+                {
+                    Console.WriteLine("put in auto tasks? y/n");
+                    autoChoice = Console.ReadKey();
+                    Console.WriteLine();
+                } while (autoChoice.Key != ConsoleKey.Y && autoChoice.Key != ConsoleKey.N); // auto fill database. this is just a filler really.
+                if (autoChoice.Key == ConsoleKey.Y)
+                {
+                    necessitiesTaskAutoSetup(conn);
+                    writeTXT("true");
+                }
             }
+            else { }
+            
             mainMenu(conn);
         }
 
+        static void writeTXT(string toWrite) // wriites over text. complete
+        {
+            using (StreamWriter sw = new StreamWriter("autoF.txt", false))
+            {
+                sw.WriteLine(toWrite);
+            }
+        }
+
+        static string readTXT() // reads file, return output. that's it // complete.
+        {
+            string line = "";
+            using (StreamReader sr = new StreamReader("autoF.txt"))
+            {
+                while (!sr.EndOfStream)
+                {
+                    line = sr.ReadLine();
+                }
+            }
+            return line;
+        }
         static void mainMenu(SQLiteConnection conn) // complete; it's a simple main menu!
         {
             ConsoleKeyInfo choiceK;
@@ -66,11 +97,54 @@ namespace SQLReadingStuff
         {
             // it's gotta loop like 7 times
             Console.WriteLine();
-            for (int i = 0; i < 8; i++) // it's probably easier to just put in "if i == 1" output monday or something but an sqlite command would be easier.
+            Console.WriteLine("All Days? Y/N");
+            ConsoleKeyInfo daysChoiceYN = Console.ReadKey();
+            if (daysChoiceYN.Key == ConsoleKey.Y)
             {
-                dayNameGet(conn, i); // just outputs the day
-                taskGetByDay(conn, i); // gets all the tasks of current day in loop
+                for (int i = 0; i < 8; i++) // it's probably easier to just put in "if i == 1" output monday or something but an sqlite command would be easier.
+                {
+                    dayNameGet(conn, i); // just outputs the day
+                    taskGetAllDays(conn, i); // gets all the tasks of current day in loop
+                    Console.WriteLine();
+                }
+            }
+            else if (daysChoiceYN.Key == ConsoleKey.N)
+            {
                 Console.WriteLine();
+                ConsoleKeyInfo choosingDay;
+                do
+                {
+                    for (int i = 0; i < daysKey.Length; i++)
+                    {
+                        Console.WriteLine("[{0}] {1}", i, daysKey[i]);
+                    }
+                    Console.WriteLine("\nWhat Day?");
+                    choosingDay = Console.ReadKey();
+                    Console.WriteLine();
+                } while (choosingDay.Key is not (ConsoleKey.D0 or ConsoleKey.D1 or ConsoleKey.D2 or ConsoleKey.D3 or ConsoleKey.D4 or ConsoleKey.D5 or ConsoleKey.D6 or ConsoleKey.D7));
+                switch (choosingDay.Key)
+                {
+                    case ConsoleKey.D0:
+                        taskIndividualDayDisplay(conn, 0); break;
+                    case ConsoleKey.D1:
+                        taskIndividualDayDisplay(conn, 1); break;
+                    case ConsoleKey.D2:
+                        taskIndividualDayDisplay(conn, 2); break;
+                    case ConsoleKey.D3:
+                        taskIndividualDayDisplay(conn, 3); break;
+                    case ConsoleKey.D4:
+                        taskIndividualDayDisplay(conn, 4); break;
+                    case ConsoleKey.D5:
+                        taskIndividualDayDisplay(conn, 5); break;
+                    case ConsoleKey.D6:
+                        taskIndividualDayDisplay(conn, 6); break;
+                    case ConsoleKey.D7:
+                        taskIndividualDayDisplay(conn, 7); break;
+                } // probably could stuff this into a subroutine, but it's not THAT necessary
+            }
+            else
+            {
+                readTasks(conn); // hell yeah recursion !
             }
             Console.WriteLine("Back to main menu? Y/N"); // return to main menu, self explanatory.
             ConsoleKeyInfo mmChoice = Console.ReadKey();
@@ -84,7 +158,7 @@ namespace SQLReadingStuff
             }
         }
 
-        static void taskGetByDay(SQLiteConnection conn, int i) // need this function for both the reading one and the one that isn't reading (the create tasks one)
+        static void taskGetAllDays(SQLiteConnection conn, int i) // need this function for both the reading one and the one that isn't reading (the create tasks one)
         {
             // this has to contain both group order, and also print all metadata essentially
             // concisely speaking, it must be expandable !
@@ -137,10 +211,10 @@ namespace SQLReadingStuff
             Console.WriteLine("Tasks For:");
             dayNameGet(conn,dayChoice);
             Console.WriteLine();
-            int usableTime = 24 - taskDayDisplay(conn, dayChoice);
+            int usableTime = 24 - taskIndividualDayDisplay(conn, dayChoice);
             if (usableTime == 0)
             {
-                Console.WriteLine("Yeah, you're out of time :/ Returning to main menu on keypress...");
+                Console.WriteLine("Yeah, you're out of time for this day :/ Returning to main menu on keypress...");
                 Console.ReadKey();
                 mainMenu(conn);
             }
@@ -159,7 +233,7 @@ namespace SQLReadingStuff
                     {
                         Console.WriteLine("Yeah that's too big");
                     }
-                    else if (usableTime <= 0)
+                    else if (timeLengthChoice <= 0)
                     {
                         Console.WriteLine("?? You gotta spend SOME time on it! Come on...");
                     }
@@ -272,14 +346,14 @@ namespace SQLReadingStuff
             // VARIABLE THREE ! TIME SPECIFIC (tSpecific)
         }
         
-        static int taskDayDisplay(SQLiteConnection conn, int day)
+        static int taskIndividualDayDisplay(SQLiteConnection conn, int day)
         {
             // takes in day, displays that day's tasks
             // additionally returns the hours you can allocate
             string theCMD = "SELECT Name, TaskTimeHours, TaskName FROM TaskType, DaySpecificKey, WeeklyAllocated WHERE WeeklyAllocated.TaskDay = " + day + " AND DaySpecificKey.DayID = WeeklyAllocated.TaskDay AND  WeeklyAllocated.TaskGroup = TaskType.ID;";
             int totalTime = 0;
             SQLiteCommand dayDisplay = new SQLiteCommand(theCMD, conn);
-            using (SQLiteDataReader reader = dayDisplay.ExecuteReader()) // i realise it'd make more sense using the older subroutine which gets all the tasks, and remove the iteration so the iteration is only used when necessary but idc enough ahhaha
+            using (SQLiteDataReader reader = dayDisplay.ExecuteReader()) // i realise it'd make more sense using the older subroutine which gets all the tasks, and remove the iteration so the iteration is only used when necessary but i'm not refactoring right now.
             {
                 while (reader.Read())
                 {
@@ -304,7 +378,7 @@ namespace SQLReadingStuff
             switch (choice.Key)
             {
                 case ConsoleKey.D1: // this one has to be specific with what it deletes... very complex.
-                    
+                    deleteTasks(conn); // TO REMOVE, THIS IS INCOMPLETE.
 
                     break;
                 case ConsoleKey.D2: // delete everything !
@@ -322,6 +396,7 @@ namespace SQLReadingStuff
                     }
                     SQLiteCommand deleteACMD = new SQLiteCommand("DELETE FROM WeeklyAllocated;", conn);
                     deleteACMD.ExecuteNonQuery();
+                    writeTXT("false");
                     Console.WriteLine("Deleted everything.");
                     break;
                 default: // this is impossible to get to i thought it'd be funny to have it please disregard it !
@@ -337,9 +412,10 @@ namespace SQLReadingStuff
 
         
         
-        static void deleteTasksMenu() // complete.. it's just a menu lol
+        static void deleteTasksMenu() // it's just a menu lol
         {
             Console.WriteLine("[1] Delete Specific Tasks?");
+            Console.WriteLine("(This won't actually do anything yet)"); // TO REMOVE, THIS ISN'T COMPLETE.
             Console.WriteLine("[2] Delete Everything?");
         }
         
