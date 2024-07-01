@@ -14,7 +14,7 @@ namespace SQLReadingStuff
         static void Main(string[] args) // complete.
         {
             // FILES REQUIRED: the database, the auto fill checker
-
+            // git push test 01/07 does it work on here ??
             SQLiteConnection conn = CreateConn();
 
             // i can't be asking this every time. the database has its limits and it can be violated and abused through this !
